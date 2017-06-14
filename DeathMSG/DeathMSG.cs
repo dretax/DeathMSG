@@ -23,6 +23,7 @@ namespace DeathMSG
         public string spike;
         public string explosion;
         public string bleeding;
+        public string tpbackmsg;
 
         public const string red = "[color #FF0000]";
         public const string green = "[color #009900]";
@@ -53,7 +54,7 @@ namespace DeathMSG
 
         public override Version Version
         {
-            get { return new Version("1.0"); }
+            get { return new Version("1.1"); }
         }
 
         public override void Initialize()
@@ -86,7 +87,7 @@ namespace DeathMSG
                     string get = (string) DataStore.GetInstance().Get("DeathMSGBAN", player.UID);
                     Vector3 loc = Util.GetUtil().ConvertStringToVector3(get);
                     player.TeleportTo(loc);
-                    player.MessageFrom(DeathMSGName, green + "You got teleported back where you died!");
+                    player.MessageFrom(DeathMSGName, green + tpbackmsg);
                     DataStore.GetInstance().Remove("DeathMSGBAN", player.UID);
                 }
             }
@@ -129,6 +130,7 @@ namespace DeathMSG
             spike = Config.GetSetting("Settings", "spike");
             explosion = Config.GetSetting("Settings", "explosionmsg");
             bleeding = Config.GetSetting("Settings", "bmsg");
+            tpbackmsg = bleeding = Config.GetSetting("Settings", "tpbackmsg");
         }
 
         public void OnCommand(Fougerite.Player player, string cmd, string[] args)
@@ -190,6 +192,7 @@ namespace DeathMSG
                         string n = suicide;
                         n = n.Replace("victim", victimname);
                         Server.GetServer().BroadcastFrom(DeathMSGName, n);
+                        return;
                     }
                     string weapon = de.WeaponName;
                     string bodyPart = Bodies.GetSetting("bodyparts", de.DamageEvent.bodyPart.ToString());
@@ -324,7 +327,7 @@ namespace DeathMSG
                     }
                     else if (bleed == "Melee")
                     {
-                        string hn;
+                        string hn = huntingbow;
                         if (weapon == "Hunting Bow")
                         {
                             if (de.Sleeper && essn == 1)
@@ -335,7 +338,6 @@ namespace DeathMSG
                             {
                                 return;
                             }
-                            hn = huntingbow;
                             hn = hn.Replace("victim", victimname);
                             hn = hn.Replace("killer", attacker.Name);
                             hn = hn.Replace("damage", damage.ToString());
