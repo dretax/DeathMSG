@@ -130,7 +130,7 @@ namespace DeathMSG
             spike = Config.GetSetting("Settings", "spike");
             explosion = Config.GetSetting("Settings", "explosionmsg");
             bleeding = Config.GetSetting("Settings", "bmsg");
-            tpbackmsg = bleeding = Config.GetSetting("Settings", "tpbackmsg");
+            tpbackmsg = Config.GetSetting("Settings", "tpbackmsg");
         }
 
         public void OnCommand(Fougerite.Player player, string cmd, string[] args)
