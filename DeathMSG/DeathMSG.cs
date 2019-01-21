@@ -34,6 +34,7 @@ namespace DeathMSG
         public int autoban;
         public int essn;
         public int dkl;
+        public int EnableConsoleKills;
 
         public System.IO.StreamWriter file;
 
@@ -54,7 +55,7 @@ namespace DeathMSG
 
         public override Version Version
         {
-            get { return new Version("1.1"); }
+            get { return new Version("1.2"); }
         }
 
         public override void Initialize()
@@ -110,27 +111,36 @@ namespace DeathMSG
 
         public void LoadConfig()
         {
-            Config = new IniParser(Path.Combine(ModuleFolder, "Settings.ini"));
-            Range = new IniParser(Path.Combine(ModuleFolder, "Range.ini"));
-            Bodies = new IniParser(Path.Combine(ModuleFolder, "Bodies.ini"));
-            DeathMSGName = Config.GetSetting("Settings", "DeathMSGName");
-            Bullet = Config.GetSetting("Settings", "msg");
-            KillLog = int.Parse(Config.GetSetting("Settings", "killog"));
-            ean = int.Parse(Config.GetSetting("Settings", "enableanimalmsg"));
-            animal = Config.GetSetting("Settings", "animalkill");
-            esn = int.Parse(Config.GetSetting("Settings", "enablesuicidemsg"));
-            suicide = Config.GetSetting("Settings", "suicide");
-            autoban = int.Parse(Config.GetSetting("Settings", "autoban"));
-            essn = int.Parse(Config.GetSetting("Settings", "enablesleepermsg"));
-            dkl = int.Parse(Config.GetSetting("Settings", "displaykilllog"));
-            sleeper = Config.GetSetting("Settings", "SleeperKill");
-            huntingbow = Config.GetSetting("Settings", "huntingbow");
-            banmsg = Config.GetSetting("Settings", "banmsg");
-            tpamsg = Config.GetSetting("Settings", "TpaMsg");
-            spike = Config.GetSetting("Settings", "spike");
-            explosion = Config.GetSetting("Settings", "explosionmsg");
-            bleeding = Config.GetSetting("Settings", "bmsg");
-            tpbackmsg = Config.GetSetting("Settings", "tpbackmsg");
+            try
+            {
+
+                Config = new IniParser(Path.Combine(ModuleFolder, "Settings.ini"));
+                Range = new IniParser(Path.Combine(ModuleFolder, "Range.ini"));
+                Bodies = new IniParser(Path.Combine(ModuleFolder, "Bodies.ini"));
+                DeathMSGName = Config.GetSetting("Settings", "DeathMSGName");
+                Bullet = Config.GetSetting("Settings", "msg");
+                KillLog = int.Parse(Config.GetSetting("Settings", "killog"));
+                ean = int.Parse(Config.GetSetting("Settings", "enableanimalmsg"));
+                animal = Config.GetSetting("Settings", "animalkill");
+                esn = int.Parse(Config.GetSetting("Settings", "enablesuicidemsg"));
+                suicide = Config.GetSetting("Settings", "suicide");
+                autoban = int.Parse(Config.GetSetting("Settings", "autoban"));
+                essn = int.Parse(Config.GetSetting("Settings", "enablesleepermsg"));
+                dkl = int.Parse(Config.GetSetting("Settings", "displaykilllog"));
+                sleeper = Config.GetSetting("Settings", "SleeperKill");
+                huntingbow = Config.GetSetting("Settings", "huntingbow");
+                banmsg = Config.GetSetting("Settings", "banmsg");
+                tpamsg = Config.GetSetting("Settings", "TpaMsg");
+                spike = Config.GetSetting("Settings", "spike");
+                explosion = Config.GetSetting("Settings", "explosionmsg");
+                bleeding = Config.GetSetting("Settings", "bmsg");
+                tpbackmsg = Config.GetSetting("Settings", "tpbackmsg");
+                EnableConsoleKills = int.Parse(Config.GetSetting("Settings", "EnableConsoleKills"));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("[DeathMSG] Failed to read config! " + ex);
+            }
         }
 
         public void OnCommand(Fougerite.Player player, string cmd, string[] args)
@@ -180,6 +190,10 @@ namespace DeathMSG
                         a = a.Replace("victim", victimname);
                         a = a.Replace("killer", killername);
                         Server.GetServer().BroadcastFrom(DeathMSGName, a);
+                        if (EnableConsoleKills == 1)
+                        {
+                            Logger.Log("[Death] " + a);
+                        }
                     }
                 }
                 else if (de.AttackerIsPlayer)
@@ -192,6 +206,10 @@ namespace DeathMSG
                         string n = suicide;
                         n = n.Replace("victim", victimname);
                         Server.GetServer().BroadcastFrom(DeathMSGName, n);
+                        if (EnableConsoleKills == 1)
+                        {
+                            Logger.Log("[Death] " + n);
+                        }
                         return;
                     }
                     string weapon = de.WeaponName;
@@ -263,6 +281,10 @@ namespace DeathMSG
                             }
                         }
                         Server.GetServer().BroadcastFrom(DeathMSGName, n);
+                        if (EnableConsoleKills == 1)
+                        {
+                            Logger.Log("[Death] " + n);
+                        }
                         if (autoban == 1)
                         {
                             int range = RangeOf(weapon);
@@ -344,6 +366,10 @@ namespace DeathMSG
                             hn = hn.Replace("number", distance.ToString());
                             hn = hn.Replace("bodyPart", bodyPart);
                             Server.GetServer().BroadcastFrom(DeathMSGName, hn);
+                            if (EnableConsoleKills == 1)
+                            {
+                                Logger.Log("[Death] " + hn);
+                            }
                             if (autoban == 1)
                             {
                                 int range = RangeOf(weapon);
@@ -414,6 +440,10 @@ namespace DeathMSG
                             s = s.Replace("killer", ownername);
                             s = s.Replace("weapon", "Spike Wall");
                             Server.GetServer().BroadcastFrom(DeathMSGName, s);
+                            if (EnableConsoleKills == 1)
+                            {
+                                Logger.Log("[Death] " + s);
+                            }
                         }
                         else if (weapon == "Large Spike Wall" && de.AttackerIsEntity)
                         {
@@ -423,6 +453,10 @@ namespace DeathMSG
                             s = s.Replace("killer", ownername);
                             s = s.Replace("weapon", "Spike Wall");
                             Server.GetServer().BroadcastFrom(DeathMSGName, s);
+                            if (EnableConsoleKills == 1)
+                            {
+                                Logger.Log("[Death] " + s);
+                            }
                         }
                         else
                         {
@@ -434,6 +468,10 @@ namespace DeathMSG
                             n = n.Replace("number", distance.ToString());
                             n = n.Replace("bodyPart", bodyPart);
                             Server.GetServer().BroadcastFrom(DeathMSGName, n);
+                            if (EnableConsoleKills == 1)
+                            {
+                                Logger.Log("[Death] " + n);
+                            }
                         }
                     }
                     else if (bleed == "Explosion")
@@ -450,6 +488,10 @@ namespace DeathMSG
                             x = x.Replace("weapon", "C4");
                         }
                         Server.GetServer().BroadcastFrom(DeathMSGName, x);
+                        if (EnableConsoleKills == 1)
+                        {
+                            Logger.Log("[Death] " + x);
+                        }
                     }
                     else if (bleed == "Bleeding")
                     {
@@ -457,6 +499,10 @@ namespace DeathMSG
                         n = n.Replace("victim", victimname);
                         n = n.Replace("killer", attacker.Name);
                         Server.GetServer().BroadcastFrom(DeathMSGName, n);
+                        if (EnableConsoleKills == 1)
+                        {
+                            Logger.Log("[Death] " + n);
+                        }
                     }
                 }
             }
