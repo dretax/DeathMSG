@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using Fougerite;
 using Fougerite.Events;
+using Fougerite.Permissions;
 using UnityEngine;
 
 namespace DeathMSG
@@ -37,6 +39,8 @@ namespace DeathMSG
         public int EnableConsoleKills;
 
         public System.IO.StreamWriter file;
+        public readonly Dictionary<string, int> RangeData = new Dictionary<string, int>();
+        public readonly Dictionary<string, string> BodiesData = new Dictionary<string, string>();
 
         public override string Name
         {
@@ -55,7 +59,7 @@ namespace DeathMSG
 
         public override Version Version
         {
-            get { return new Version("1.2"); }
+            get { return new Version("1.3"); }
         }
 
         public override void Initialize()
@@ -64,6 +68,7 @@ namespace DeathMSG
             {
                 File.Create(Path.Combine(ModuleFolder, "KillLog.log")).Dispose();
             }
+
             LoadConfig();
             Hooks.OnPlayerKilled += OnPlayerKilled;
             Hooks.OnPlayerSpawned += OnPlayerSpawned;
@@ -81,12 +86,19 @@ namespace DeathMSG
         {
             if (player != null)
             {
-                if (DataStore.GetInstance().Get("tpfriendautoban", player.UID) != null) { DataStore.GetInstance().Remove("tpfriendautoban", player.UID);}
-                if (DataStore.GetInstance().Get("homesystemautoban", player.UID) != null) { DataStore.GetInstance().Remove("homesystemautoban", player.UID);}
+                if (DataStore.GetInstance().Get("tpfriendautoban", player.UID) != null)
+                {
+                    DataStore.GetInstance().Remove("tpfriendautoban", player.UID);
+                }
+
+                if (DataStore.GetInstance().Get("homesystemautoban", player.UID) != null)
+                {
+                    DataStore.GetInstance().Remove("homesystemautoban", player.UID);
+                }
+
                 if (DataStore.GetInstance().Get("DeathMSGBAN", player.UID) != null)
                 {
-                    string get = (string) DataStore.GetInstance().Get("DeathMSGBAN", player.UID);
-                    Vector3 loc = Util.GetUtil().ConvertStringToVector3(get);
+                    Vector3 loc = (Vector3) DataStore.GetInstance().Get("DeathMSGBAN", player.UID);
                     player.TeleportTo(loc);
                     player.MessageFrom(DeathMSGName, green + tpbackmsg);
                     DataStore.GetInstance().Remove("DeathMSGBAN", player.UID);
@@ -94,7 +106,7 @@ namespace DeathMSG
             }
         }
 
-        public void Log(string killer, string weapon, string distance, string victim, 
+        public void Log(string killer, string weapon, string distance, string victim,
             string bodypart, string damage, int tp, string loca, string locv, string avg = "Not Available")
         {
             string line = DateTime.Now + " Killer: " + killer + " Gun: " + weapon + " Dist: " + distance + " Victim: " +
@@ -102,8 +114,9 @@ namespace DeathMSG
                           + " " + avg;
             if (tp == 1)
             {
-                line = line + " WAS TELEPORTING";
+                line += " WAS TELEPORTING";
             }
+
             file = new System.IO.StreamWriter(Path.Combine(ModuleFolder, "KillLog.log"), true);
             file.WriteLine(line);
             file.Close();
@@ -113,10 +126,22 @@ namespace DeathMSG
         {
             try
             {
-
                 Config = new IniParser(Path.Combine(ModuleFolder, "Settings.ini"));
                 Range = new IniParser(Path.Combine(ModuleFolder, "Range.ini"));
                 Bodies = new IniParser(Path.Combine(ModuleFolder, "Bodies.ini"));
+
+                foreach (string key in Bodies.EnumSection("bodyparts"))
+                {
+                    string part = Bodies.GetSetting("bodyparts", key);
+                    BodiesData[key] = part;
+                }
+                
+                foreach (string key in Range.EnumSection("range"))
+                {
+                    string part = Bodies.GetSetting("range", key);
+                    RangeData[key] = int.Parse(part);
+                }
+                
                 DeathMSGName = Config.GetSetting("Settings", "DeathMSGName");
                 Bullet = Config.GetSetting("Settings", "msg");
                 KillLog = int.Parse(Config.GetSetting("Settings", "killog"));
@@ -145,33 +170,40 @@ namespace DeathMSG
 
         public void OnCommand(Fougerite.Player player, string cmd, string[] args)
         {
-            if (cmd == "flushdeathmsg")
+            switch (cmd)
             {
-                if (player.Admin)
+                case "flushdeathmsg":
                 {
-                    DataStore.GetInstance().Flush("DeathMSGAVG");
-                    DataStore.GetInstance().Flush("DeathMSGAVG2");
-                    player.MessageFrom(DeathMSGName, "Flushed!");
+                    if (player.Admin || PermissionSystem.GetPermissionSystem().PlayerHasPermission(player, "deathmsg.flushdeathmsg"))
+                    {
+                        DataStore.GetInstance().Flush("DeathMSGAVG");
+                        DataStore.GetInstance().Flush("DeathMSGAVG2");
+                        player.MessageFrom(DeathMSGName, "Flushed!");
+                    }
+
+                    break;
                 }
-            }
-            else if (cmd == "deathmsgrd")
-            {
-                if (player.Admin)
+                case "deathmsgrd":
                 {
-                    LoadConfig();
-                    player.MessageFrom(DeathMSGName, "Reloaded!");
+                    if (player.Admin || PermissionSystem.GetPermissionSystem().PlayerHasPermission(player, "deathmsg.deathmsgrd"))
+                    {
+                        LoadConfig();
+                        player.MessageFrom(DeathMSGName, "Reloaded!");
+                    }
+
+                    break;
                 }
             }
         }
 
         public int RangeOf(string weapon)
         {
-            var data = Range.GetSetting("range", weapon);
-            if (data == null)
+            if (RangeData.ContainsKey(weapon))
             {
-                return -1;
+                return RangeData[weapon];
             }
-            return int.Parse(data);
+
+            return -1;
         }
 
         public void OnPlayerKilled(DeathEvent de)
@@ -179,11 +211,11 @@ namespace DeathMSG
             if (de.DamageType != null && de.Attacker != null && de.Victim != null &&
                 (de.AttackerIsPlayer || de.AttackerIsNPC || de.AttackerIsEntity))
             {
-                Fougerite.Player victim = (Fougerite.Player) de.Victim;
+                Fougerite.Player victim = (Fougerite.Player)de.Victim;
                 string victimname = victim.Name;
                 if (de.AttackerIsNPC)
                 {
-                    string killername = ((NPC) de.Attacker).Name;
+                    string killername = ((NPC)de.Attacker).Name;
                     if (ean == 1)
                     {
                         string a = animal;
@@ -210,10 +242,12 @@ namespace DeathMSG
                         {
                             Logger.Log("[Death] " + n);
                         }
+
                         return;
                     }
+
                     string weapon = de.WeaponName;
-                    string bodyPart = Bodies.GetSetting("bodyparts", de.DamageEvent.bodyPart.ToString());
+                    string bodyPart = BodiesData[de.DamageEvent.bodyPart.ToString()];
                     Vector3 killerloc = attacker.Location;
                     Vector3 location = victim.Location;
                     double distance = Math.Round(Vector3.Distance(killerloc, location));
@@ -222,18 +256,20 @@ namespace DeathMSG
                     if (bleed == "Bullet")
                     {
                         string message;
-                        if (de.Sleeper)
+                        if (de.VictimIsSleeper)
                         {
                             if (essn == 0)
                             {
                                 return;
                             }
+
                             message = sleeper;
                         }
                         else
                         {
                             message = Bullet;
                         }
+
                         string n = message.Replace("victim", victimname);
                         n = n.Replace("killer", attacker.Name);
                         n = n.Replace("weapon", weapon);
@@ -251,7 +287,7 @@ namespace DeathMSG
                             }
                             else
                             {
-                                c = (int) DataStore.GetInstance().Get("DeathMSGAVG", attacker.UID) + 1;
+                                c = (int)DataStore.GetInstance().Get("DeathMSGAVG", attacker.UID) + 1;
                                 DataStore.GetInstance().Add("DeathMSGAVG", attacker.UID, c);
                             }
                         }
@@ -267,24 +303,26 @@ namespace DeathMSG
                                 c = (int)DataStore.GetInstance().Get("DeathMSGAVG2", attacker.UID) + 1;
                                 DataStore.GetInstance().Add("DeathMSGAVG2", attacker.UID, c);
                             }
-
                         }
+
                         if (c >= 5)
                         {
                             object cd = DataStore.GetInstance().Get("DeathMSGAVG2", attacker.UID);
                             if (cd != null)
                             {
-                                int cd2 = (int) cd;
+                                int cd2 = (int)cd;
                                 double cc = c / cd2;
                                 calc = Math.Round(cc).ToString();
                                 n = n + " (HAvg: " + calc + "% )";
                             }
                         }
+
                         Server.GetServer().BroadcastFrom(DeathMSGName, n);
                         if (EnableConsoleKills == 1)
                         {
                             Logger.Log("[Death] " + n);
                         }
+
                         if (autoban == 1)
                         {
                             int range = RangeOf(weapon);
@@ -292,14 +330,16 @@ namespace DeathMSG
                             {
                                 return;
                             }
+
                             if (distance > range)
                             {
                                 var tpfriendteleport = DataStore.GetInstance().Get("tpfriendautoban", aid);
                                 var hometeleport = DataStore.GetInstance().Get("homesystemautoban", aid);
                                 if (hometeleport == null || string.IsNullOrEmpty((string)hometeleport)
-                                    || (string)hometeleport == "none"
-                                    || tpfriendteleport == null || string.IsNullOrEmpty((string)tpfriendteleport)
-                                    || (string)tpfriendteleport == "none")
+                                                         || (string)hometeleport == "none"
+                                                         || tpfriendteleport == null ||
+                                                         string.IsNullOrEmpty((string)tpfriendteleport)
+                                                         || (string)tpfriendteleport == "none")
                                 {
                                     string z = banmsg;
                                     z = z.Replace("killer", attacker.Name);
@@ -307,12 +347,14 @@ namespace DeathMSG
                                     {
                                         return;
                                     }
+
                                     if (KillLog == 1)
                                     {
                                         Log(attacker.Name, weapon, distance.ToString(), victimname, bodyPart,
                                             damage.ToString(),
                                             0, killerloc.ToString(), location.ToString(), calc);
                                     }
+
                                     DataStore.GetInstance().Add("DeathMSGBAN", vid, location);
                                     Server.GetServer().BroadcastFrom(DeathMSGName, red + z);
                                     Server.GetServer()
@@ -327,19 +369,23 @@ namespace DeathMSG
                                     {
                                         return;
                                     }
+
                                     if (KillLog == 1)
                                     {
                                         Log(attacker.Name, weapon, distance.ToString(), victimname, bodyPart,
                                             damage.ToString(),
                                             1, killerloc.ToString(), location.ToString(), calc);
                                     }
+
                                     Server.GetServer().BroadcastFrom(DeathMSGName, t);
                                     DataStore.GetInstance().Remove("tpfriendautoban", aid);
                                     DataStore.GetInstance().Remove("homesystemautoban", aid);
                                 }
+
                                 return;
                             }
                         }
+
                         if (KillLog == 1)
                         {
                             Log(attacker.Name, weapon, distance.ToString(), victimname, bodyPart,
@@ -352,7 +398,7 @@ namespace DeathMSG
                         string hn = huntingbow;
                         if (weapon == "Hunting Bow")
                         {
-                            if (de.Sleeper && essn == 1)
+                            if (de.VictimIsSleeper && essn == 1)
                             {
                                 hn = sleeper;
                             }
@@ -360,6 +406,7 @@ namespace DeathMSG
                             {
                                 return;
                             }
+
                             hn = hn.Replace("victim", victimname);
                             hn = hn.Replace("killer", attacker.Name);
                             hn = hn.Replace("damage", damage.ToString());
@@ -370,6 +417,7 @@ namespace DeathMSG
                             {
                                 Logger.Log("[Death] " + hn);
                             }
+
                             if (autoban == 1)
                             {
                                 int range = RangeOf(weapon);
@@ -377,14 +425,16 @@ namespace DeathMSG
                                 {
                                     return;
                                 }
+
                                 if (distance > range)
                                 {
                                     var tpfriendteleport = DataStore.GetInstance().Get("tpfriendautoban", aid);
                                     var hometeleport = DataStore.GetInstance().Get("homesystemautoban", aid);
                                     if (hometeleport == null || string.IsNullOrEmpty((string)hometeleport)
-                                    || (string)hometeleport == "none"
-                                    || tpfriendteleport == null || string.IsNullOrEmpty((string)tpfriendteleport)
-                                    || (string)tpfriendteleport == "none")
+                                                             || (string)hometeleport == "none"
+                                                             || tpfriendteleport == null ||
+                                                             string.IsNullOrEmpty((string)tpfriendteleport)
+                                                             || (string)tpfriendteleport == "none")
                                     {
                                         string z = banmsg;
                                         z = z.Replace("killer", attacker.Name);
@@ -392,12 +442,14 @@ namespace DeathMSG
                                         {
                                             return;
                                         }
+
                                         if (KillLog == 1)
                                         {
                                             Log(attacker.Name, weapon, distance.ToString(), victimname, bodyPart,
                                                 damage.ToString(),
                                                 0, killerloc.ToString(), location.ToString());
                                         }
+
                                         DataStore.GetInstance().Add("DeathMSGBAN", vid, location);
                                         Server.GetServer().BroadcastFrom(DeathMSGName, red + z);
                                         Server.GetServer()
@@ -412,19 +464,23 @@ namespace DeathMSG
                                         {
                                             return;
                                         }
+
                                         if (KillLog == 1)
                                         {
                                             Log(attacker.Name, weapon, distance.ToString(), victimname, bodyPart,
                                                 damage.ToString(),
                                                 1, killerloc.ToString(), location.ToString());
                                         }
+
                                         Server.GetServer().BroadcastFrom(DeathMSGName, t);
                                         DataStore.GetInstance().Remove("tpfriendautoban", aid);
                                         DataStore.GetInstance().Remove("homesystemautoban", aid);
                                     }
+
                                     return;
                                 }
                             }
+
                             if (KillLog == 1)
                             {
                                 Log(attacker.Name, weapon, distance.ToString(), victimname, bodyPart,
@@ -487,6 +543,7 @@ namespace DeathMSG
                         {
                             x = x.Replace("weapon", "C4");
                         }
+
                         Server.GetServer().BroadcastFrom(DeathMSGName, x);
                         if (EnableConsoleKills == 1)
                         {
