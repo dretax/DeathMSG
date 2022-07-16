@@ -138,7 +138,7 @@ namespace DeathMSG
                 
                 foreach (string key in Range.EnumSection("range"))
                 {
-                    string part = Bodies.GetSetting("range", key);
+                    string part = Range.GetSetting("range", key);
                     RangeData[key] = int.Parse(part);
                 }
                 
